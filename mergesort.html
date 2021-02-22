@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      margin: 0;
+    }
+    .note {
+      background: #fff;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      position: relative;
+    }
+    .columns {
+      display: flex;
+    }
+    .column {
+      padding: 4px;
+      display: flex;
+      align-items: center;
+    }
+    .note-container {
+      display: flex;
+      position: relative;
+      align-items: flex-end;
+      height: 720px;
+    }
+    .column.highlight { background: #333; }
+    .column.highlight .note,
+    .column.active .note {
+      box-shadow: 0 0 30px #fff, 0 0 60px #fff;
+    }
+    .column.sorted .note {
+      background: #d7fc70;
+    }
+    .column.sorted { background: #131; }
+    .column.left { background: #311; }
+    .column.right { background: #113; }
+    .column.left .note {
+      background: #f00;
+    }
+    .column.right .note {
+      background: #00f;
+    }
+    .column.active .note {
+      background: #ff0;
+    }
+    #scene {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body style="background: #111">
+  <div id="scene" style="width: 1920px; height: 1080px; background: #000; color: white;">
+  </div>
+  <script type="module">
+    import { html, render } from 'https://unpkg.com/htm/preact/standalone.module.js';
+
+    const song = [14, 0, 15, 7, 19, 5, 0, 14, 10, 12, 17, 14, 5, 2, 3, 2, 17, 2, 22, 15, 12, 0, 3, 19, 17, 12, 5, 15, 22, 7, 10, 3].map((note, index) => ({ note, key: index }))
+    const frames = []
+
+    frames.push(song.map(note => ({ ...note })))
+    song.forEach((_note, i) => {
+      frames.push(song.map((note, j) => ({ ...note, className: i === j ? 'highlight' : '' })))
+    })
+
+    const display = song.slice()
+    function mergeSort(array, index = 0) {
+      if (array.length <= 1) return array
+      const mid = Math.floor(array.length / 2)
+      const left = mergeSort(array.slice(0, mid), index)
+      const right = mergeSort(array.slice(mid), index + mid)
+      return merge(left, right, index)
+    }
+    let lastSorted = null
+    function merge(left, right, index) {
+      let i = 0
+      let j = 0
+      const output = []
+      for (;;) {
+        if (i >= left.length && j >= right.length) {
+          lastSorted = { index, size: output.length }
+          return output
+        }
+
+        let k = index
+        const write = (a) => {
+          for (const number of a) {
+            display[k++] = number
+          }
+        }
+        write(output)
+        write(left.slice(i))
+        write(right.slice(j))
+        const frame = display.map((note, k) => ({ ...note, className: '' }))
+        let kk = index
+        const writeClass = (a, className) => {
+          for (const number of a) {
+            frame[kk++].className = className
+          }
+        }
+        if (lastSorted) {
+          for (let h = 0; h < lastSorted.size; h++) {
+            frame[h + lastSorted.index].className = 'sorted'
+          }
+        }
+        writeClass(output, 'sorted')
+        writeClass(left.slice(i), 'left')
+        writeClass(right.slice(j), 'right')
+
+        if (j >= right.length || (!(i >= left.length) && left[i].note <= right[j].note)) {
+          frame[index + output.length].className += ' active'
+          output.push(left[i])
+          i++
+        } else {
+          frame[index + output.length + left.length - i].className += ' active'
+          output.push(right[j])
+          j++
+        }
+
+        frames.push(frame)
+      }
+    }
+    mergeSort(song.slice())
+    frames.push(display.map((note, j) => ({ ...note, className: 'sorted' })))
+
+    frames.forEach((frame, i) => {
+      setTimeout(() => {
+        render(html`<div class="columns">
+          ${frame.map(({note, className}) => {
+            return html`<div class=${'column ' + className}>
+              <div class="note-container">
+                <div class="note" style=${{ top: note * -32 + 'px' }}>
+                </div>
+              </div>
+            </div>`
+          })}
+        </div>`, scene);
+      }, (60e3 / 118 / 4) * i + (i > 0 ? 1000 : 0))
+    })
+  </script>
+</body>
+</html>
